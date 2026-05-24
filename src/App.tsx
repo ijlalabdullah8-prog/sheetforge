@@ -261,18 +261,41 @@ function App() {
   };
 
   const choosePlan = async (plan_name: string) => {
+    if (plan_name === 'starter') {
+      setSavingKey('plan-starter');
+      try {
+        const token = await getToken();
+        const res = await fetch('/api/subscription', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ plan_name }),
+        });
+        if (res.ok) await fetchDashboard();
+      } finally {
+        setSavingKey(null);
+      }
+      return;
+    }
+
+    // For pro and scale — open Lemon Squeezy checkout
     setSavingKey(`plan-${plan_name}`);
     try {
       const token = await getToken();
-      const res = await fetch('/api/subscription', {
+      const res = await fetch('/api/checkout', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ plan_name }),
+        body: JSON.stringify({ plan_name, email: sessionUser?.email }),
       });
-      if (res.ok) await fetchDashboard();
+      const data = await res.json();
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
     } finally {
       setSavingKey(null);
     }
@@ -626,9 +649,6 @@ function App() {
                   {(summary?.insights || []).map((insight) => (
                     <div key={insight} className="rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4 text-sm text-sky-100">{insight}</div>
                   ))}
-                </div>
-                <div className="mt-4 rounded-2xl border border-violet-400/20 bg-violet-400/10 p-4 text-sm text-violet-100">
-                  Paddle integration path: keep this subscription table as entitlement state, launch Paddle Checkout from plan buttons, and sync events via webhook into `subscriptions` for plan upgrades, renewals, and cancellations.
                 </div>
               </div>
             </div>
